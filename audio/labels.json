@@ -1,0 +1,38 @@
+{
+ "note": "Dave's ear-verified labels. Multi-clip format: clips[] each with file+segments. Legacy single-file consumers: use clips[0].",
+ "clips": [
+  {
+   "file": "audio/chipper-chainsaw.mp3",
+   "duration": 399.528,
+   "segments": [
+    {"label": "chipper-chipping", "start": 7.68, "end": 16.52},
+    {"label": "chipper-idle", "start": 27.15, "end": 30.7},
+    {"label": "chipper-chipping", "start": 42.57, "end": 50.81},
+    {"label": "chipper-chipping", "start": 54.81, "end": 58.74},
+    {"label": "chipper-chipping", "start": 70.42, "end": 80.75},
+    {"label": "chipper-chipping", "start": 81.95, "end": 90.49},
+    {"label": "chainsaw-cutting", "start": 152.92, "end": 162.96},
+    {"label": "chainsaw-cutting", "start": 193.35, "end": 204.28},
+    {"label": "chipper-idle", "start": 338.45, "end": 347.43}
+   ]
+  },
+  {
+   "file": "audio/chainsaw-far.mp3",
+   "duration": null,
+   "segments": []
+  }
+ ],
+ "file": "audio/chipper-chainsaw.mp3",
+ "duration": 399.528,
+ "segments": [
+  {"label": "chipper-chipping", "start": 7.68, "end": 16.52},
+  {"label": "chipper-idle", "start": 27.15, "end": 30.7},
+  {"label": "chipper-chipping", "start": 42.57, "end": 50.81},
+  {"label": "chipper-chipping", "start": 54.81, "end": 58.74},
+  {"label": "chipper-chipping", "start": 70.42, "end": 80.75},
+  {"label": "chipper-chipping", "start": 81.95, "end": 90.49},
+  {"label": "chainsaw-cutting", "start": 152.92, "end": 162.96},
+  {"label": "chainsaw-cutting", "start": 193.35, "end": 204.28},
+  {"label": "chipper-idle", "start": 338.45, "end": 347.43}
+ ]
+}

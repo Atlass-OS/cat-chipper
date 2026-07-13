@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CAT CHIPPER</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:'Segoe UI',Arial,sans-serif;user-select:none}
+  #c{display:block;width:100vw;height:100vh}
+  .hud{position:fixed;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;z-index:5}
+  #score{top:14px;left:16px;font-size:22px;font-weight:700}
+  #score small{font-weight:400;font-size:14px;opacity:.85;display:block}
+  #combo{top:14px;left:50%;transform:translateX(-50%);font-size:30px;font-weight:900;color:#ff5b4d;opacity:0;transition:opacity .2s}
+  #treestat{top:14px;right:16px;text-align:right;font-size:15px}
+  #chipstat{font-weight:700}
+  #prompt{bottom:22%;left:50%;transform:translateX(-50%);font-size:17px;background:rgba(0,0,0,.55);padding:6px 16px;border-radius:20px;pointer-events:none}
+  #msgs{bottom:15px;left:16px;font-size:14px;max-width:44vw}
+  #msgs div{margin-top:3px;background:rgba(0,0,0,.45);padding:3px 10px;border-radius:10px;display:table}
+  #tools{bottom:15px;right:16px;font-size:13px;text-align:right}
+  .tool{display:inline-block;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);padding:5px 10px;margin-left:6px;border-radius:8px;opacity:.45}
+  .tool.have{opacity:1}.tool.sel{border-color:#ffd34d;color:#ffd34d;box-shadow:0 0 8px rgba(255,211,77,.5)}
+  #cross{top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;opacity:.85}
+  #eventbanner{top:22%;left:50%;transform:translateX(-50%);font-size:40px;font-weight:900;letter-spacing:2px;color:#ffd34d;opacity:0;transition:opacity .3s;text-align:center}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 180px rgba(0,0,0,.55)}
+  #overlay{position:fixed;inset:0;background:rgba(8,10,14,.9);z-index:10;display:flex;align-items:center;justify-content:center;color:#eee}
+  #overlay .card{max-width:640px;padding:34px 44px;background:#141820;border:1px solid #2a3242;border-radius:16px;text-align:center;max-height:88vh;overflow:auto}
+  #overlay h1{margin:0 0 4px;font-size:44px;letter-spacing:3px;color:#ff5b4d;text-shadow:0 0 22px rgba(255,60,40,.5)}
+  #overlay h2{margin:0 0 16px;font-size:15px;font-weight:400;color:#9fb0c8}
+  #overlay .keys{columns:2;text-align:left;font-size:13.5px;color:#c9d4e4;margin:14px 0;line-height:1.75}
+  #overlay .keys b{color:#ffd34d}
+  #overlay button{margin-top:14px;font-size:19px;padding:12px 40px;border:none;border-radius:10px;background:#ff5b4d;color:#fff;font-weight:700;cursor:pointer}
+  #overlay button:hover{background:#ff7b6d}
+  #overlay .warn{font-size:12px;color:#8a93a5;margin-top:14px;line-height:1.5}
+  #overlay label{font-size:13px;color:#c9d4e4;cursor:pointer}
+  #endstats{font-size:17px;line-height:2;display:none}
+  #rank{font-size:26px;font-weight:800;color:#ffd34d;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div class="hud" id="score">$0<small id="catcount">cats chipped: 0</small></div>
+<div class="hud" id="combo"></div>
+<div class="hud" id="treestat"><span id="treecount"></span><br><span id="chipstat"></span><br><span id="eventstat"></span></div>
+<div class="hud" id="cross">+</div>
+<div class="hud" id="prompt" style="display:none"></div>
+<div class="hud" id="msgs"></div>
+<div class="hud" id="eventbanner"></div>
+<div class="hud" id="tools">
+  <span class="tool have sel" id="t1">1 HANDS</span><span class="tool" id="t2">2 LASSO</span><span class="tool" id="t3">3 SHOVEL</span><span class="tool" id="t4">4 PELLET GUN</span>
+</div>
+<div id="overlay">
+  <div class="card">
+    <h1>CAT CHIPPER</h1>
+    <h2>A tree crew. A scenic lot. A stray cat problem. One solution.</h2>
+    <div id="introtext" style="font-size:13.5px;color:#aab6c8;text-align:left;line-height:1.6">
+      The crew is here to take down every mature tree on the old lady's lot. As limbs come off,
+      the strays living in the trees and bushes scatter and hide under whatever they can find.
+      Your job: get them into the wood chipper before the crew finishes the job.
+      The chipper only takes cats when it isn't busy chewing branches — watch the intake light.
+    </div>
+    <div class="keys">
+      <div><b>WASD</b> move &nbsp;·&nbsp; <b>SHIFT</b> sprint</div>
+      <div><b>MOUSE</b> look &nbsp;·&nbsp; <b>CLICK</b> throw / use tool</div>
+      <div><b>E</b> grab cat / interact / catch</div>
+      <div><b>Q</b> release the dogs (once freed)</div>
+      <div><b>1–4</b> switch tools &nbsp;·&nbsp; <b>M</b> mute</div>
+      <div><b>TIP</b> the crew early = idle chipper</div>
+      <div>Search the <b>shed &amp; car</b> for tools</div>
+      <div>Chip 3 cats to unlock the <b>pellet gun</b></div>
+      <div>Catch what the <b>old lady</b> throws at you</div>
+      <div>Serve <b>iced tea</b> = crew break = free chipper</div>
+    </div>
+    <div id="endstats"></div>
+    <div id="rank"></div>
+    <button id="playbtn">START THE CHIPPER</button>
+    <div class="warn">
+      Cartoon dark comedy — no real cats were harmed, several fictional ones extremely were.<br>
+      <label><input type="checkbox" id="noflash"> reduce flashing effects (bonus round)</label>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/01-core.js"></script>
+<script src="js/02-world.js"></script>
+<script src="js/03-actors.js"></script>
+<script src="js/04-fx-audio.js"></script>
+<script src="js/05-gameplay.js"></script>
+<script src="js/06-main.js"></script>
+
+</body>
+</html>

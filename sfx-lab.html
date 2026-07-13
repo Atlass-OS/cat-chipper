@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CAT CHIPPER — SFX Lab</title>
+<style>
+  body{margin:0;background:#12151c;color:#dde4ee;font-family:'Segoe UI',Arial,sans-serif;padding:18px}
+  h1{font-size:20px;color:#ff5b4d;letter-spacing:1px;margin:0 0 4px}
+  h2{font-size:14px;color:#ffd34d;letter-spacing:1px;margin:26px 0 8px;text-transform:uppercase}
+  .sub{color:#8a93a5;font-size:13px;margin-bottom:14px}
+  #wavewrap{position:relative;background:#0a0c10;border:1px solid #2a3242;border-radius:8px;overflow:hidden}
+  #wave{display:block;width:100%;height:220px;cursor:crosshair}
+  #playhead{position:absolute;top:0;bottom:0;width:1px;background:#fff;pointer-events:none;opacity:.9}
+  .regionbox{position:absolute;top:0;bottom:0;pointer-events:none;border-left:1px solid rgba(255,255,255,.4);border-right:1px solid rgba(255,255,255,.4)}
+  .regionbox span{position:absolute;top:2px;left:3px;font-size:10px;background:rgba(0,0,0,.6);padding:1px 5px;border-radius:4px;pointer-events:none;white-space:nowrap}
+  .rhandle{position:absolute;top:0;bottom:0;width:9px;pointer-events:auto;cursor:ew-resize;z-index:3}
+  .rhandle.l{left:-4px}.rhandle.r{right:-4px}
+  .rhandle::after{content:'';position:absolute;top:38%;bottom:38%;left:3px;width:3px;background:rgba(255,255,255,.75);border-radius:2px}
+  .rhandle:hover::after{background:#ffd34d;top:30%;bottom:30%}
+  #controls{margin:12px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{background:#232a38;color:#dde4ee;border:1px solid #39445a;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px}
+  button:hover{background:#2e3850}
+  button.primary{background:#ff5b4d;border-color:#ff5b4d;color:#fff;font-weight:700}
+  button.submit{background:#2f9e4f;border-color:#2f9e4f;color:#fff;font-weight:700;font-size:15px;padding:10px 26px}
+  #status{color:#8a93a5;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{padding:6px 8px;border-bottom:1px solid #232a38;text-align:left}
+  th{color:#8a93a5;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+  select,input[type=number]{background:#0a0c10;color:#dde4ee;border:1px solid #39445a;border-radius:4px;padding:4px 6px}
+  input[type=number]{width:84px}
+  td button{padding:3px 9px;font-size:12px}
+  .del{color:#ff5b4d}
+  .hint{font-size:12px;color:#8a93a5;margin-top:6px;line-height:1.6}
+  .lb{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  #droptip{border:2px dashed #39445a;border-radius:8px;padding:8px 14px;color:#8a93a5;font-size:12px}
+  #droptip.hot{border-color:#ffd34d;color:#ffd34d}
+  #testout td small{color:#8a93a5}
+  #submitresult{font-size:13px;margin-left:10px}
+  .ok{color:#5dff7a}.err{color:#ff5b4d}
+</style>
+</head>
+<body>
+<h1>SFX LAB — <span id="clipname">…</span></h1>
+<div class="sub">upload clips · drag on the waveform to make regions · drag the white handles to trim · label · TEST the winners · SUBMIT straight to the game</div>
+<div id="wavewrap">
+  <canvas id="wave" height="220"></canvas>
+  <div id="playhead" style="left:0"></div>
+</div>
+<div id="controls">
+  <select id="clipsel"></select>
+  <button id="uploadbtn">⬆ upload clip…</button>
+  <input type="file" id="filein" accept=".mp3,.wav,.ogg" style="display:none" multiple>
+  <span id="droptip">…or drop audio files anywhere on this page</span>
+  <button id="autoseg" class="primary">AUTO-SEGMENT</button>
+  <button id="playall">▶ play from cursor</button>
+  <button id="stop">■ stop</button>
+  <span id="status">loading…</span>
+</div>
+<table id="regions"><thead><tr><th></th><th>label</th><th>start (s)</th><th>end (s)</th><th>len</th><th>play</th><th></th></tr></thead><tbody></tbody></table>
+<div style="margin-top:10px">
+  <button id="save">SAVE THIS CLIP'S LABELS</button>
+</div>
+
+<h2>Test output — what the game will actually use</h2>
+<div class="hint">Winners are chosen exactly like the game chooses: loudness × √duration across ALL clips in the library, silence rejected, loudness-normalized. If it sounds right here, it sounds right in the game.</div>
+<table id="testout"><thead><tr><th>game label</th><th>winner</th><th>len</th><th>rms</th><th>gain×</th><th>audition</th></tr></thead><tbody></tbody></table>
+<div style="margin-top:14px">
+  <button id="testrefresh">↻ RECOMPUTE WINNERS</button>
+  <button id="submit" class="submit">SUBMIT TO GAME</button>
+  <span id="submitresult"></span>
+</div>
+
+<h2>Clip library</h2>
+<table id="library"><thead><tr><th>file</th><th>size</th><th>labeled regions</th><th></th></tr></thead><tbody></tbody></table>
+<div class="hint">
+  Game labels: <b>chipper-idle</b> · <b>chipper-chipping</b> · <b>chainsaw-idle</b> · <b>chainsaw-cutting</b> · <b>ambience</b> · <b>discard</b> (ignored).
+  Aim for 2–10s loop regions cut at similar-amplitude points. SUBMIT writes audio/labels.json — the game reads it fresh on every refresh.
+</div>
+<script>
+'use strict';
+const LABELS=['chipper-idle','chipper-chipping','chainsaw-idle','chainsaw-cutting','ambience','discard'];
+const GAME_LABELS=['chipper-idle','chipper-chipping','chainsaw-idle','chainsaw-cutting','ambience'];
+const COLORS={'chipper-idle':'rgba(90,200,120,.25)','chipper-chipping':'rgba(255,91,77,.28)','chainsaw-idle':'rgba(90,150,255,.25)','chainsaw-cutting':'rgba(255,211,77,.28)','ambience':'rgba(160,160,200,.2)','discard':'rgba(120,120,120,.18)'};
+const AC=new (window.AudioContext||window.webkitAudioContext)();
+let buf=null,regions=[],srcNode=null,playT0=0,playOfs=0,playing=false,loopRegion=null;
+let curFile=null,clipList=[],bufCache={},bakedLabels=null;
+const wave=document.getElementById('wave'),wrap=document.getElementById('wavewrap');
+const statusEl=document.getElementById('status');
+function fmt(s){return (Math.round(s*100)/100).toFixed(2);}
+function storageKey(f){return 'sfxlab_labels::'+(f||curFile);}
+
+// ---------- clip library ----------
+async function refreshClips(selectFile){
+  const j=await fetch('/api/clips').then(r=>r.json());
+  clipList=j.clips;
+  const sel=document.getElementById('clipsel');
+  sel.innerHTML=clipList.map(c=>'<option value="'+c.file+'">'+c.file.split('/').pop()+'</option>').join('');
+  try{bakedLabels=await fetch('audio/labels.json',{cache:'no-store'}).then(r=>r.json());}catch(e){bakedLabels=null;}
+  renderLibrary();
+  const target=selectFile||curFile||(clipList[0]&&clipList[0].file);
+  if(target){sel.value=target;loadClip(target);}
+}
+function segsFor(file){
+  const saved=localStorage.getItem(storageKey(file));
+  if(saved){try{const j=JSON.parse(saved);if(j.segments)return j.segments;}catch(e){}}
+  if(bakedLabels){
+    const clip=(bakedLabels.clips||[]).find(c=>c.file===file)||(bakedLabels.file===file?bakedLabels:null);
+    if(clip&&clip.segments)return clip.segments;}
+  return [];
+}
+function renderLibrary(){
+  const tb=document.querySelector('#library tbody');tb.innerHTML='';
+  for(const c of clipList){
+    const segs=segsFor(c.file);
+    const counts={};for(const s of segs)counts[s.label]=(counts[s.label]||0)+1;
+    const summary=Object.keys(counts).map(k=>k+'×'+counts[k]).join(', ')||'—';
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+c.file.split('/').pop()+'</td><td>'+(c.size/1e6).toFixed(1)+' MB</td><td>'+summary+'</td>'+
+      '<td><button data-open="'+c.file+'">open</button></td>';
+    tb.appendChild(tr);}
+  tb.querySelectorAll('[data-open]').forEach(b=>b.onclick=e=>{
+    document.getElementById('clipsel').value=e.target.dataset.open;loadClip(e.target.dataset.open);});
+}
+// ---------- upload ----------
+async function uploadFiles(files){
+  for(const f of files){
+    if(!/\.(mp3|wav|ogg)$/i.test(f.name)){statusEl.textContent=f.name+': mp3/wav/ogg only';continue;}
+    statusEl.textContent='uploading '+f.name+'…';
+    const r=await fetch('/api/upload',{method:'POST',headers:{'x-filename':f.name},body:f}).then(r=>r.json());
+    statusEl.textContent=r.ok?('uploaded '+r.file):('upload failed: '+r.error);
+    if(r.ok)await refreshClips(r.file);}
+}
+document.getElementById('uploadbtn').onclick=()=>document.getElementById('filein').click();
+document.getElementById('filein').onchange=e=>uploadFiles([...e.target.files]);
+addEventListener('dragover',e=>{e.preventDefault();document.getElementById('droptip').classList.add('hot');});
+addEventListener('dragleave',()=>document.getElementById('droptip').classList.remove('hot'));
+addEventListener('drop',e=>{e.preventDefault();document.getElementById('droptip').classList.remove('hot');
+  uploadFiles([...e.dataTransfer.files]);});
+// ---------- clip loading ----------
+async function decodeFile(file){
+  if(bufCache[file])return bufCache[file];
+  const ab=await fetch(file,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();});
+  const b=await AC.decodeAudioData(ab);bufCache[file]=b;return b;
+}
+function loadClip(file){
+  stopPlay();curFile=file;buf=null;regions=[];
+  document.getElementById('clipname').textContent=file.split('/').pop();
+  statusEl.textContent='decoding '+file+'…';
+  document.querySelectorAll('.regionbox').forEach(e=>e.remove());
+  document.querySelector('#regions tbody').innerHTML='';
+  decodeFile(file).then(b=>{
+    buf=b;statusEl.textContent='decoded: '+fmt(b.duration)+'s · '+b.sampleRate+'Hz · '+b.numberOfChannels+'ch';
+    sizeCanvas();drawWave();
+    const segs=segsFor(file);
+    if(segs.length){regions=segs.map(s=>({label:s.label,start:s.start,end:s.end}));renderRegions();
+      statusEl.textContent+=' · '+regions.length+' regions';}
+  }).catch(e=>{statusEl.textContent='DECODE FAILED: '+e;});
+}
+document.getElementById('clipsel').onchange=e=>loadClip(e.target.value);
+
+function sizeCanvas(){wave.width=wrap.clientWidth;}
+addEventListener('resize',()=>{sizeCanvas();drawWave();renderRegions();});
+function drawWave(){
+  if(!buf)return;
+  const ctx=wave.getContext('2d'),W=wave.width,H=wave.height;
+  ctx.fillStyle='#0a0c10';ctx.fillRect(0,0,W,H);
+  const d=buf.getChannelData(0),step=Math.floor(d.length/W);
+  ctx.strokeStyle='#4a90b8';ctx.beginPath();
+  for(let x=0;x<W;x++){
+    let mn=1,mx=-1;
+    for(let i=0;i<step;i+=8){const v=d[x*step+i];if(v<mn)mn=v;if(v>mx)mx=v;}
+    ctx.moveTo(x,H/2+mn*H/2*.92);ctx.lineTo(x,H/2+mx*H/2*.92);}
+  ctx.stroke();
+  ctx.fillStyle='#8a93a5';ctx.font='10px sans-serif';
+  const secPerPx=buf.duration/W;
+  const tick=buf.duration>120?30:buf.duration>40?10:5;
+  for(let t=0;t<buf.duration;t+=tick){const x=t/secPerPx;ctx.fillRect(x,H-14,1,6);ctx.fillText(t+'s',x+2,H-4);}
+}
+// ---------- analysis ----------
+function analyze(){
+  const d=buf.getChannelData(0),sr=buf.sampleRate,hop=Math.floor(sr*0.05);
+  const frames=[];
+  for(let i=0;i+hop<d.length;i+=hop){
+    let sum=0,zc=0,prev=d[i];
+    for(let j=1;j<hop;j++){const v=d[i+j];sum+=v*v;if((v>0)!==(prev>0))zc++;prev=v;}
+    frames.push({t:i/sr,rms:Math.sqrt(sum/hop),zcr:zc/hop});}
+  return frames;
+}
+function median(a){const s=[...a].sort((x,y)=>x-y);return s[s.length>>1];}
+function segRms(b,t0,t1){
+  const d=b.getChannelData(0),sr=b.sampleRate;let s=0,n=0;
+  for(let i=Math.floor(t0*sr);i<Math.min(d.length,Math.floor(t1*sr));i+=4){s+=d[i]*d[i];n++;}
+  return n?Math.sqrt(s/n):0;
+}
+document.getElementById('autoseg').onclick=()=>{
+  if(!buf)return;
+  const fr=analyze();
+  const mR=median(fr.map(f=>f.rms)),mZ=median(fr.map(f=>f.zcr));
+  const cls=fr.map(f=>{
+    if(f.rms<mR*0.35)return 'ambience';
+    if(f.rms>mR*1.9)return f.zcr>mZ*1.25?'chainsaw-cutting':'chipper-chipping';
+    return f.zcr>mZ*1.25?'chainsaw-idle':'chipper-idle';});
+  const sm=cls.map((c,i)=>{
+    const w=cls.slice(Math.max(0,i-4),i+5),cnt={};let best=c,bn=0;
+    for(const x of w){cnt[x]=(cnt[x]||0)+1;if(cnt[x]>bn){bn=cnt[x];best=x;}}
+    return best;});
+  regions=[];let start=0;
+  for(let i=1;i<=sm.length;i++){
+    if(i===sm.length||sm[i]!==sm[start]){
+      const t0=fr[start].t,t1=i<fr.length?fr[i].t:buf.duration;
+      if(t1-t0>=1.5)regions.push({label:sm[start],start:Math.round(t0*100)/100,end:Math.round(t1*100)/100});
+      start=i;}}
+  renderRegions();
+  statusEl.textContent='auto-segmented: '+regions.length+' regions — now LISTEN and fix the labels';
+};
+// ---------- regions ----------
+function renderRegions(){
+  document.querySelectorAll('.regionbox').forEach(e=>e.remove());
+  const W=wave.width,dur=buf?buf.duration:1;
+  regions.forEach((r,ri)=>{
+    const b=document.createElement('div');b.className='regionbox';
+    b.style.left=(r.start/dur*100)+'%';b.style.width=((r.end-r.start)/dur*100)+'%';
+    b.style.background=COLORS[r.label]||'rgba(255,255,255,.12)';
+    b.innerHTML='<span>'+ri+': '+r.label+'</span>'+
+      '<div class="rhandle l" data-h="'+ri+':start"></div>'+
+      '<div class="rhandle r" data-h="'+ri+':end"></div>';
+    wrap.appendChild(b);});
+  document.querySelectorAll('.rhandle').forEach(h=>h.addEventListener('mousedown',e=>{
+    e.stopPropagation();e.preventDefault();
+    const[i,k]=e.target.dataset.h.split(':');handleDrag={i:+i,k};}));
+  const tb=document.querySelector('#regions tbody');tb.innerHTML='';
+  regions.forEach((r,ri)=>{
+    const tr=document.createElement('tr');
+    const opts=LABELS.map(l=>'<option'+(l===r.label?' selected':'')+'>'+l+'</option>').join('');
+    tr.innerHTML='<td>'+ri+'</td>'+
+      '<td><span class="lb" style="background:'+(COLORS[r.label]||'#888')+'"></span><select data-i="'+ri+'">'+opts+'</select></td>'+
+      '<td><input type="number" step="0.05" value="'+fmt(r.start)+'" data-i="'+ri+'" data-k="start"></td>'+
+      '<td><input type="number" step="0.05" value="'+fmt(r.end)+'" data-i="'+ri+'" data-k="end"></td>'+
+      '<td>'+fmt(r.end-r.start)+'s</td>'+
+      '<td><button data-play="'+ri+'">∞ loop</button> <button data-once="'+ri+'">▶ once</button></td>'+
+      '<td><button class="del" data-del="'+ri+'">✕</button></td>';
+    tb.appendChild(tr);});
+  tb.querySelectorAll('select').forEach(s=>s.onchange=e=>{regions[+e.target.dataset.i].label=e.target.value;renderRegions();});
+  tb.querySelectorAll('input').forEach(inp=>inp.onchange=e=>{regions[+e.target.dataset.i][e.target.dataset.k]=+e.target.value;renderRegions();});
+  tb.querySelectorAll('[data-play]').forEach(b=>b.onclick=e=>playLoop(regions[+e.target.dataset.play]));
+  tb.querySelectorAll('[data-once]').forEach(b=>b.onclick=e=>playOnce(regions[+e.target.dataset.once]));
+  tb.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{regions.splice(+e.target.dataset.del,1);renderRegions();});
+}
+// handle dragging
+let handleDrag=null;
+document.addEventListener('mousemove',e=>{
+  if(!handleDrag||!buf)return;
+  const rect=wave.getBoundingClientRect();
+  let t=(e.clientX-rect.left)/rect.width*buf.duration;
+  t=Math.max(0,Math.min(buf.duration,Math.round(t*100)/100));
+  const r=regions[handleDrag.i];if(!r)return;
+  if(handleDrag.k==='start')r.start=Math.min(t,r.end-0.2);
+  else r.end=Math.max(t,r.start+0.2);
+  const dur=buf.duration,b=document.querySelectorAll('.regionbox')[handleDrag.i];
+  if(b){b.style.left=(r.start/dur*100)+'%';b.style.width=((r.end-r.start)/dur*100)+'%';}
+});
+document.addEventListener('mouseup',()=>{if(handleDrag){handleDrag=null;renderRegions();}});
+// drag to create
+let dragX=null;
+wave.addEventListener('mousedown',e=>{dragX=e.offsetX;});
+wave.addEventListener('mouseup',e=>{
+  if(dragX===null||!buf)return;
+  const a=Math.min(dragX,e.offsetX),b2=Math.max(dragX,e.offsetX);
+  if(b2-a>6){const dur=buf.duration,W=wave.width;
+    regions.push({label:'chipper-idle',start:Math.round(a/W*dur*100)/100,end:Math.round(b2/W*dur*100)/100});
+    regions.sort((x,y)=>x.start-y.start);renderRegions();}
+  else{playOfs=a/wave.width*buf.duration;}
+  dragX=null;});
+// ---------- playback ----------
+let testGain=null;
+function stopPlay(){if(srcNode){try{srcNode.stop();}catch(e){}srcNode=null;}playing=false;loopRegion=null;}
+function playBufRegion(b,start,end,loop,gainMul){
+  stopPlay();AC.resume();
+  srcNode=AC.createBufferSource();srcNode.buffer=b;
+  testGain=AC.createGain();testGain.gain.value=gainMul||1;
+  srcNode.connect(testGain);testGain.connect(AC.destination);
+  if(loop){srcNode.loop=true;srcNode.loopStart=start;srcNode.loopEnd=end;srcNode.start(0,start);}
+  else srcNode.start(0,start,end-start);
+  playT0=AC.currentTime;playOfs=start;playing=true;loopRegion=loop?{start,end}:null;}
+function playLoop(r){if(buf)playBufRegion(buf,r.start,r.end,true,1);}
+function playOnce(r){if(buf)playBufRegion(buf,r.start,r.end,false,1);}
+document.getElementById('playall').onclick=()=>{
+  stopPlay();if(!buf)return;AC.resume();
+  srcNode=AC.createBufferSource();srcNode.buffer=buf;srcNode.connect(AC.destination);
+  srcNode.start(0,playOfs);playT0=AC.currentTime;playing=true;};
+document.getElementById('stop').onclick=stopPlay;
+addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.tagName!=='INPUT'){e.preventDefault();playing?stopPlay():document.getElementById('playall').click();}});
+(function tickPH(){
+  requestAnimationFrame(tickPH);
+  if(!buf)return;
+  let t=playOfs;
+  if(playing){t=playOfs+(AC.currentTime-playT0);
+    if(loopRegion){const len=loopRegion.end-loopRegion.start;t=loopRegion.start+((t-loopRegion.start)%len);}
+    if(t>buf.duration){stopPlay();t=0;}}
+  document.getElementById('playhead').style.left=(Math.min(1,t/buf.duration)*100)+'%';})();
+// ---------- save (per clip) ----------
+document.getElementById('save').onclick=()=>{
+  localStorage.setItem(storageKey(),JSON.stringify({file:curFile,duration:buf?buf.duration:0,segments:regions}));
+  statusEl.textContent='saved '+regions.length+' regions for '+curFile.split('/').pop();
+  renderLibrary();};
+// ---------- TEST OUTPUT: mirror the game's picker ----------
+async function computeWinners(){
+  const tb=document.querySelector('#testout tbody');
+  tb.innerHTML='<tr><td colspan="6">decoding library…</td></tr>';
+  // save current clip's working regions first so they count
+  if(curFile&&regions.length)localStorage.setItem(storageKey(),JSON.stringify({file:curFile,duration:buf?buf.duration:0,segments:regions}));
+  const pool={};
+  for(const c of clipList){
+    const segs=segsFor(c.file);if(!segs.length)continue;
+    let b;try{b=await decodeFile(c.file);}catch(e){continue;}
+    // silence floor for this file: quietest decile of 1s windows
+    const win=[];for(let t=0;t+1<b.duration;t+=Math.max(1,b.duration/40))win.push(segRms(b,t,t+1));
+    win.sort((a,b2)=>a-b2);const floor=win[Math.floor(win.length*0.1)]||0.0005;
+    for(const s of segs){
+      if(s.label==='discard')continue;
+      const r=segRms(b,s.start,s.end);
+      if(r<floor*2.5)continue; // silence reject
+      const score=r*Math.sqrt(s.end-s.start);
+      if(!pool[s.label]||score>pool[s.label].score)
+        pool[s.label]={file:c.file,buf:b,start:s.start,end:s.end,rms:r,score};}}
+  tb.innerHTML='';
+  for(const l of GAME_LABELS){
+    const w=pool[l];
+    const tr=document.createElement('tr');
+    if(!w){tr.innerHTML='<td><span class="lb" style="background:'+(COLORS[l]||'#888')+'"></span>'+l+'</td><td colspan="5"><small>no usable segment — synth fallback will play</small></td>';}
+    else{
+      const gainMul=Math.min(3,Math.max(0.5,0.02/w.rms));
+      w.gainMul=gainMul;
+      tr.innerHTML='<td><span class="lb" style="background:'+(COLORS[l]||'#888')+'"></span>'+l+'</td>'+
+        '<td>'+w.file.split('/').pop()+' <small>'+fmt(w.start)+'–'+fmt(w.end)+'</small></td>'+
+        '<td>'+fmt(w.end-w.start)+'s</td><td>'+w.rms.toFixed(4)+'</td><td>'+gainMul.toFixed(2)+'</td>'+
+        '<td><button data-tl="'+l+'">∞ loop</button> <button data-to="'+l+'">▶ once</button> <button data-ts="1">■</button></td>';}
+    tb.appendChild(tr);}
+  tb.querySelectorAll('[data-tl]').forEach(b=>b.onclick=e=>{const w=pool[e.target.dataset.tl];if(w)playBufRegion(w.buf,w.start,w.end,true,w.gainMul);});
+  tb.querySelectorAll('[data-to]').forEach(b=>b.onclick=e=>{const w=pool[e.target.dataset.to];if(w)playBufRegion(w.buf,w.start,w.end,false,w.gainMul);});
+  tb.querySelectorAll('[data-ts]').forEach(b=>b.onclick=stopPlay);
+  return pool;
+}
+document.getElementById('testrefresh').onclick=computeWinners;
+// ---------- SUBMIT ----------
+document.getElementById('submit').onclick=async()=>{
+  const res=document.getElementById('submitresult');
+  res.textContent='building…';res.className='';
+  if(curFile&&regions.length)localStorage.setItem(storageKey(),JSON.stringify({file:curFile,duration:buf?buf.duration:0,segments:regions}));
+  const clips=[];
+  for(const c of clipList){
+    const segs=segsFor(c.file);
+    if(!segs.length)continue;
+    let d=0;try{d=(await decodeFile(c.file)).duration;}catch(e){}
+    clips.push({file:c.file,duration:d,segments:segs});}
+  if(!clips.length){res.textContent='nothing to submit — no labeled clips';res.className='err';return;}
+  const payload={clips,file:clips[0].file,duration:clips[0].duration,segments:clips[0].segments};
+  const r=await fetch('/api/labels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(e=>({ok:false,error:String(e)}));
+  if(r.ok){res.textContent='✔ submitted '+clips.length+' clip(s) — refresh the game and it\'s live';res.className='ok';}
+  else{res.textContent='✘ '+r.error;res.className='err';}
+};
+// ---------- boot ----------
+refreshClips().then(()=>computeWinners()).catch(e=>statusEl.textContent='INIT FAILED: '+e);
+</script>
+</body>
+</html>
