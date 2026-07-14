@@ -3,10 +3,13 @@
 <head>
 <meta charset="utf-8">
 <title>CAT CHIPPER</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <style>
   html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:'Segoe UI',Arial,sans-serif;user-select:none}
-  #c{display:block;width:100vw;height:100vh}
+  /* viewport lock: no scroll/rubber-band, no pull-to-refresh, no swipe-nav, no pinch/double-tap zoom */
+  html,body{position:fixed;inset:0;width:100%;height:100%;overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+  #c{display:block;width:100vw;height:100vh;height:100dvh;touch-action:none}
+  #overlay .card{touch-action:pan-y;overscroll-behavior:contain}
   .hud{position:fixed;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;z-index:5}
   #score{top:14px;left:16px;font-size:22px;font-weight:700}
   #score small{font-weight:400;font-size:14px;opacity:.85;display:block}
@@ -159,6 +162,51 @@
   #hintticker{position:absolute;bottom:0;left:0;right:0;overflow:hidden;white-space:nowrap;padding:8px 0;background:rgba(0,0,0,.32);border-top:1px solid #2a3242;color:#9fb0c8;font-size:13px;z-index:1}
   .ticker-track{display:inline-block;padding-left:100%;animation:tickerScroll 26s linear infinite}
   @keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+
+  /* ---- mobile touch control surface (08-mobile.js tags body.touch on coarse-pointer devices) ---- */
+  #touchui{display:none}
+  body.touch #touchui{display:block}
+  #touchui>*{position:fixed;z-index:9;user-select:none;-webkit-user-select:none;touch-action:none}
+  #joy{left:calc(20px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.28)}
+  #joyknob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.26);border:2px solid rgba(255,255,255,.5);box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:none}
+  .tbtn{display:flex;align-items:center;justify-content:center;width:70px;height:70px;border-radius:50%;background:rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.35);color:#fff;font-weight:800;font-size:14px;letter-spacing:1px;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+  .tbtn.on{background:rgba(255,211,77,.35);border-color:#ffd34d}
+  #btn-yeet{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(108px + env(safe-area-inset-bottom,0px));width:86px;height:86px;border-color:rgba(255,91,77,.8);font-size:16px}
+  #btn-catch{right:calc(118px + env(safe-area-inset-right,0px));bottom:calc(34px + env(safe-area-inset-bottom,0px))}
+  #btn-kick{right:calc(128px + env(safe-area-inset-right,0px));bottom:calc(136px + env(safe-area-inset-bottom,0px));width:58px;height:58px;font-size:24px}
+  #btn-act{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(212px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-color:#ffd34d;color:#ffd34d;font-size:22px}
+  #btn-act.hot{animation:actPulse .6s ease-in-out infinite;background:rgba(255,211,77,.25)}
+  @keyframes actPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+  #btn-dogs{left:calc(172px + env(safe-area-inset-left,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:52px;height:52px;font-size:20px}
+  #btn-stance{left:calc(172px + env(safe-area-inset-left,0px));bottom:calc(102px + env(safe-area-inset-bottom,0px));width:52px;height:52px;font-size:20px}
+  #btn-pause{top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:46px;height:40px;border-radius:10px;font-size:15px}
+  #touchkeys{display:none}
+  body.touch #touchkeys{display:block}
+  body.touch .keys:not(#touchkeys){display:none!important}
+
+  /* mobile HUD: shrink + clear the thumb zones */
+  @media (pointer:coarse){
+    #score{font-size:17px}#score small{font-size:12px}
+    #combo{top:60px;font-size:24px}
+    #treestat{font-size:12px}
+    #eventbanner{font-size:26px;width:90vw}
+    #incoming{top:60%;font-size:17px;padding:6px 14px;border-width:2px}
+    #prompt{bottom:32%;font-size:14px}
+    #msgs{bottom:auto;top:66px;left:12px;font-size:12px;max-width:52vw}
+    #tools{bottom:auto;top:96px;right:12px;font-size:11px}
+    body.touch #tools{pointer-events:auto}
+    #tools .tool{padding:4px 7px;margin-left:4px}
+    #tools .kc{min-width:12px;font-size:10px}
+    #bandolier{bottom:auto;top:136px;right:12px}
+    #kickmeter{bottom:auto;top:176px;left:auto;right:12px;transform:none}
+    #qtetext{font-size:30px}
+    #qtebarwrap,#qtetimewrap{width:min(340px,72vw)}
+    #overlay .card{max-width:92vw;max-height:82dvh;padding:18px 20px}
+    #overlay h1{font-size:30px}
+    #overlay h2{font-size:13px}
+    #overlay button{font-size:16px;padding:10px 30px}
+    #touchkeys{columns:1!important}
+  }
 </style>
 </head>
 <body>
@@ -194,6 +242,16 @@
 <div class="hud" id="tools">
   <span class="tool have sel" id="t1"><b class="kc">1</b> HANDS</span><span class="tool" id="t2"><b class="kc">2</b> LASSO</span><span class="tool" id="t3"><b class="kc">3</b> SHOVEL</span><span class="tool" id="t4"><b class="kc">4</b> PELLET GUN</span>
 </div>
+<div id="touchui">
+  <div id="joy"><div id="joyknob"></div></div>
+  <div class="tbtn" id="btn-yeet">YEET</div>
+  <div class="tbtn" id="btn-catch">CATCH</div>
+  <div class="tbtn" id="btn-kick">🦵</div>
+  <div class="tbtn" id="btn-act">E</div>
+  <div class="tbtn" id="btn-dogs">🐕</div>
+  <div class="tbtn" id="btn-stance">🧍</div>
+  <div class="tbtn" id="btn-pause">❚❚</div>
+</div>
 <div id="overlay">
   <div class="card">
     <h1>CAT CHIPPER</h1>
@@ -218,6 +276,16 @@
       <div>Catch what the <b>old lady</b> throws at you</div>
       <div>Serve <b>iced tea</b> = crew break = free chipper</div>
     </div>
+    <div class="keys" id="touchkeys">
+      <div><b>LEFT PAD</b> move — push to the rim to sprint</div>
+      <div><b>DRAG THE SCREEN</b> to look around</div>
+      <div><b>YEET</b> tap = grab · hold = wind up, release = throw</div>
+      <div><b>CATCH</b> hold to catch cats (tap = mid-air snag)</div>
+      <div><b>🦵</b> hold = KICK (field goal = 3x!) · <b>E</b> interact</div>
+      <div><b>🐕</b> release/whistle dogs · <b>🧍</b> stand/crouch/prone</div>
+      <div>Tap the <b>toolbar</b> to switch tools</div>
+      <div><b>MASH THE SCREEN</b> if the chipper grabs you</div>
+    </div>
     <div id="endstats"></div>
     <div id="rank"></div>
     <div id="sessionstats" style="display:none"></div>
@@ -239,6 +307,7 @@
 <script src="js/05-gameplay.js"></script>
 <script src="js/06-main.js"></script>
 <script src="js/07-neighborhood.js"></script>
+<script src="js/08-mobile.js"></script>
 
 </body>
 </html>

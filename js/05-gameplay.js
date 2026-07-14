@@ -59,10 +59,8 @@ addEventListener('mousemove',e=>{
   const cx=clamp(mx,-120,120),cy=clamp(my,-120,120);
   player.yaw-=cx*0.0021;player.pitch-=cy*0.0021;
   player.pitch=clamp(player.pitch,-1.45,1.45);});
-addEventListener('mousedown',e=>{
-  if(document.pointerLockElement!==canvas||game.paused||game.over)return;
-  if(e.button===1){e.preventDefault();startKick();return;} // MIDDLE mouse = kick (works even mid-catch)
-  if(e.button===2){
+// press/release actions — shared by desktop mouse (below) and the touch surface (08-mobile.js)
+function pressRMB(){
     game._rmbDown=true;
     // 1. cancel an active throw wind-up — keep holding the cat/prop
     if(game.charge!==null&&game.charge!==undefined){
@@ -82,9 +80,8 @@ addEventListener('mousedown',e=>{
           air.vel.set(0,0,0);air.mesh.rotation.x=0;air._stunOnLand=0;
           grabCat(air);msg('SNAGGED mid-air!','#ffd34d');return;}}
       // 3. RMB-hold = THE catch button, carrying or not: to hand when empty, to bandolier when carrying
-      if(!player.carrying||game.bandolier.length<4)beginCatchChannel(2);}
-    return;}
-  if(e.button!==0)return;
+      if(!player.carrying||game.bandolier.length<4)beginCatchChannel(2);}}
+function pressLMB(){
   game._lmbDown=true;
   if(game.qte||game.eatenT>0||game.down>0)return;
   if(player.tool!=='hands'){primaryAction();return;} // lasso/shovel/gun unchanged
@@ -101,22 +98,28 @@ addEventListener('mousedown',e=>{
   if(beginCatchChannel())return;
   // 6. no cat: instant non-hostile dog punt, else instant prop pickup (tap semantics)
   if(tryPuntDog(false))return;
-  tryPickupProp();});
-addEventListener('mouseup',e=>{
-  if(e.button===1){releaseKick();return;} // middle mouse releases the kick
-  if(e.button===2){
-    game._rmbDown=false;
-    if(game._catchBtn===2&&game.catchT!==null&&game.catchT!==undefined){ // abandon the second-catch channel
-      game.catchT=null;game._catchTarget=null;game._catchBtn=null;}
-    return;}
-  if(e.button!==0)return;
+  tryPickupProp();}
+function releaseRMB(){
+  game._rmbDown=false;
+  if(game._catchBtn===2&&game.catchT!==null&&game.catchT!==undefined){ // abandon the second-catch channel
+    game.catchT=null;game._catchTarget=null;game._catchBtn=null;}}
+function releaseLMB(){
   game._lmbDown=false;
   if(game._catchBtn!==2&&game.catchT!==null&&game.catchT!==undefined){game.catchT=null;game._catchTarget=null;game._catchBtn=null;return;} // released before catch = abandon (LMB-owned only)
   if(game.charge===null)return;
   const ch=game.charge;game.charge=null;
   if(game.paused||game.over||game.qte||game.eatenT>0)return;
   if(player.carrying)throwCat(ch);
-  else if(player.carryProp)throwProp(ch);});
+  else if(player.carryProp)throwProp(ch);}
+addEventListener('mousedown',e=>{
+  if(document.pointerLockElement!==canvas||game.paused||game.over)return;
+  if(e.button===1){e.preventDefault();startKick();return;} // MIDDLE mouse = kick (works even mid-catch)
+  if(e.button===2){pressRMB();return;}
+  if(e.button===0)pressLMB();});
+addEventListener('mouseup',e=>{
+  if(e.button===1){releaseKick();return;} // middle mouse releases the kick
+  if(e.button===2){releaseRMB();return;}
+  if(e.button===0)releaseLMB();});
 function selectTool(t){
   if(t!=='hands'&&!player.tools[t]){msg("you don't have that yet",'#f88');return;}
   player.tool=t;
