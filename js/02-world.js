@@ -11,12 +11,13 @@ function texTile(key,rx,ry){
   c.repeat.set(rx,ry);
   return c;
 }
-// ground plane: segmented + vertex-displaced by terrainH for gentle rolling hills
-const groundGeo=new THREE.PlaneGeometry(320,320,128,128);
+// ground plane: segmented + vertex-displaced by terrainRaw for gentle rolling hills
+// (TERRAIN_SIZE/TERRAIN_SEGS are shared with terrainH in 01-core — it interpolates this exact grid)
+const groundGeo=new THREE.PlaneGeometry(TERRAIN_SIZE,TERRAIN_SIZE,TERRAIN_SEGS,TERRAIN_SEGS);
 {const p=groundGeo.attributes.position;
  for(let i=0;i<p.count;i++){
    const gx=p.getX(i),gy=p.getY(i); // plane local; after -90° X rot, local +Y maps to world -Z
-   p.setZ(i,terrainH(gx,-gy)); // displace along local Z (becomes world Y)
+   p.setZ(i,terrainRaw(gx,-gy)); // displace along local Z (becomes world Y)
  }
  groundGeo.computeVertexNormals();}
 const ground=new THREE.Mesh(groundGeo,M.grass);

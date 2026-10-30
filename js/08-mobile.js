@@ -125,11 +125,7 @@ if(IS_TOUCH){
     if(!game.started||game.over||game.paused)return;
     game.paused=true;
     clearMoveKeys();releaseLMB();releaseRMB();releaseKick();
-    setOverlayMode('pause');
-    const _ss=document.getElementById('sessionstats');
-    if(_ss)_ss.innerHTML='cats chipped: <b>'+game.catsChipped+'</b> &nbsp;·&nbsp; score: <b>$'+game.score+'</b> &nbsp;·&nbsp; best combo: <b>'+(game.bestCombo||0)+'x</b>';
-    document.getElementById('playbtn').textContent='RESUME';
-    document.getElementById('overlay').style.display='flex';},{passive:false});
+    showPauseCard();},{passive:false});
 
   // toolbar chips become tap targets (1-4 on keyboard)
   [['t1','hands'],['t2','lasso'],['t3','shovel'],['t4','gun']].forEach(([id,tool])=>{

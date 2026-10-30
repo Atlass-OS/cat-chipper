@@ -13,7 +13,8 @@ const smoothstep=(x,e0,e1)=>{const t=clamp((x-e0)/(e1-e0),0,1);return t*t*(3-2*t
 /* ---------------- terrain heightfield ----------------
    terrainH(x,z) = gentle rolling hills, FLATTENED to 0 near structures/chipper/driveway/road so
    gameplay-critical geometry (chipper intake, felling trees, building pads, the splat decal) stays level.
-   Everything that sits on the ground adds terrainH(x,z) to its Y. Contract: pure function, no state. */
+   Everything that sits on the ground adds terrainH(x,z) to its Y. Contract: pure function, no state.
+   terrainRaw = the analytic curve (only the ground mesh vertices sample it); terrainH = the RENDERED surface. */
 const _flatZones=[
   {x:4,z:28,r:11},   // chipper + truck + branch staging pallet
   {x:-42,z:-34,r:14},// house + porch + tea table
@@ -24,7 +25,7 @@ const _flatZones=[
   {x:-46,z:16,r:5},  // shed
   {x:-30,z:34,r:7},  // dog run
 ];
-function terrainH(x,z){
+function terrainRaw(x,z){
   // gentle rolling lawn: a few long-wavelength waves, ~0.9m peak in open areas
   let h=Math.sin(x*0.045+1.3)*0.55 + Math.cos(z*0.038-0.7)*0.5 + Math.sin((x+z)*0.028)*0.32;
   let mask=1;
@@ -37,6 +38,20 @@ function terrainH(x,z){
   // road + far verge (z≳58) flat
   mask=Math.min(mask, 1-smoothstep(z, 56, 63));
   return h*mask;
+}
+// The ground mesh (02-world) samples terrainRaw on a TERRAIN_SEGS grid and draws flat triangles between the
+// samples; at the flat-zone edges that chord sits up to ~0.6m off the analytic curve. terrainH interpolates
+// the same grid with the same triangle split as PlaneGeometry, so feet/gibs/decals land on the grass you SEE.
+const TERRAIN_SIZE=320,TERRAIN_SEGS=128,_tCell=TERRAIN_SIZE/TERRAIN_SEGS,_tHalf=TERRAIN_SIZE/2;
+function terrainH(x,z){
+  // grid vertex (i,j) sits at world (-half+i*cell, -half+j*cell); PlaneGeometry faces are (a,b,d)+(b,c,d)
+  const fx=(x+_tHalf)/_tCell,fz=(z+_tHalf)/_tCell;
+  if(fx<0||fz<0||fx>=TERRAIN_SEGS||fz>=TERRAIN_SEGS)return terrainRaw(x,z); // off the mesh
+  const i=Math.floor(fx),j=Math.floor(fz),u=fx-i,v=fz-j;
+  const x0=-_tHalf+i*_tCell,z0=-_tHalf+j*_tCell,x1=x0+_tCell,z1=z0+_tCell;
+  const b=terrainRaw(x0,z1),d=terrainRaw(x1,z0);
+  if(u+v<=1){const a=terrainRaw(x0,z0);return a+(d-a)*u+(b-a)*v;}
+  const c=terrainRaw(x1,z1);return c+(b-c)*(1-u)+(d-c)*(1-v);
 }
 
 /* ---------------- renderer / scene ---------------- */

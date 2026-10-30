@@ -131,14 +131,16 @@ document.getElementById('overlay').addEventListener('click',()=>{
 // keep the reduce-flash checkbox (and its label) clickable without triggering resume
 {const _nf=document.getElementById('noflash');
  if(_nf&&_nf.parentElement)_nf.parentElement.addEventListener('click',e=>e.stopPropagation());}
+// mid-run pause card — shared by pointer-lock loss (below), the touch ❚❚ button (08) and the gamepad MENU button (09)
+function showPauseCard(){
+  game.paused=true;
+  setOverlayMode('pause');
+  const _ss=document.getElementById('sessionstats');
+  if(_ss)_ss.innerHTML='cats chipped: <b>'+game.catsChipped+'</b> &nbsp;·&nbsp; score: <b>$'+game.score+'</b> &nbsp;·&nbsp; best combo: <b>'+(game.bestCombo||0)+'x</b>';
+  document.getElementById('playbtn').textContent='RESUME';
+  document.getElementById('overlay').style.display='flex';}
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement!==canvas&&game.started&&!game.over){
-    game.paused=true;
-    setOverlayMode('pause');
-    const _ss=document.getElementById('sessionstats');
-    if(_ss)_ss.innerHTML='cats chipped: <b>'+game.catsChipped+'</b> &nbsp;·&nbsp; score: <b>$'+game.score+'</b> &nbsp;·&nbsp; best combo: <b>'+(game.bestCombo||0)+'x</b>';
-    document.getElementById('playbtn').textContent='RESUME';
-    document.getElementById('overlay').style.display='flex';}});
+  if(document.pointerLockElement!==canvas&&game.started&&!game.over)showPauseCard();});
 
 /* ---------------- doors anim ---------------- */
 function updateDoors(dt){
@@ -158,6 +160,7 @@ let comboWatch=0;
 function tick(){
   requestAnimationFrame(tick);
   const dt=Math.min(clock.getDelta(),0.05);
+  if(typeof pollGamepad==='function')pollGamepad(dt); // 09: before the sim, and while paused (MENU/A resume)
   if(game.started&&!game.paused&&!game.over){
     game.time+=dt;
     if(!game.workStarted){game.prepT-=dt;}
@@ -175,7 +178,7 @@ function tick(){
     updateParts(dt);
     computePrompt();
     const pe=document.getElementById('prompt');
-    if(promptText){pe.style.display='block';pe.textContent=promptText;}
+    if(promptText){pe.style.display='block';pe.textContent=typeof padLabel==='function'?padLabel(promptText):promptText;}
     else pe.style.display='none';
     // combo pop + best combo tracking
     if(game.combo>(game.bestCombo||0))game.bestCombo=game.combo;

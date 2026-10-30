@@ -183,6 +183,10 @@
   #touchkeys{display:none}
   body.touch #touchkeys{display:block}
   body.touch .keys:not(#touchkeys){display:none!important}
+  /* ---- gamepad (09-gamepad.js tags body.pad while a controller is the last-used device) ---- */
+  #padkeys{display:none}
+  body.pad #padkeys{display:block}
+  body.pad .keys:not(#padkeys){display:none!important}
 
   /* mobile HUD: shrink + clear the thumb zones */
   @media (pointer:coarse){
@@ -286,6 +290,18 @@
       <div>Tap the <b>toolbar</b> to switch tools</div>
       <div><b>MASH THE SCREEN</b> if the chipper grabs you</div>
     </div>
+    <div class="keys" id="padkeys">
+      <div><b>LS</b> move · <b>L3</b> sprint &nbsp;·&nbsp; <b>RS</b> look</div>
+      <div><b>HOLD LT</b> catch cats (tap = snag airborne) &nbsp;·&nbsp; <b>RT</b> wind up → YEET</div>
+      <div><b>RB</b> hold = KICK (field goal = 3x!) &nbsp;·&nbsp; <b>A</b> interact</div>
+      <div><b>Y</b> release dogs / whistle them to you &nbsp;·&nbsp; <b>B</b> crouch · hold = prone</div>
+      <div><b>D-PAD</b> / <b>LB</b> switch tools &nbsp;·&nbsp; <b>VIEW</b> mute &nbsp;·&nbsp; <b>MENU</b> pause</div>
+      <div><b>TIP</b> the crew early = idle chipper</div>
+      <div>Search the <b>shed &amp; car</b> for tools</div>
+      <div>Chip 3 cats to unlock the <b>pellet gun</b></div>
+      <div>Catch what the <b>old lady</b> throws at you</div>
+      <div><b>MASH ANY BUTTON</b> if the chipper grabs you</div>
+    </div>
     <div id="endstats"></div>
     <div id="rank"></div>
     <div id="sessionstats" style="display:none"></div>
@@ -308,6 +324,7 @@
 <script src="js/06-main.js"></script>
 <script src="js/07-neighborhood.js"></script>
 <script src="js/08-mobile.js"></script>
+<script src="js/09-gamepad.js"></script>
 
 </body>
 </html>
