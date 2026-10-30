@@ -62,7 +62,8 @@ function updateParts(dt){
     if(p.settled){if(p.life<=0){scene.remove(p.m);parts.splice(i,1);}continue;} // settled: no physics, just age out
     p.vel.y-=(p.grav||14)*dt;p.m.position.addScaledVector(p.vel,dt);
     p.m.rotation.x+=dt*6;p.m.rotation.z+=dt*4;
-    if(p.m.position.y<0.04){p.m.position.y=0.04;p.vel.set(0,0,0);
+    const gy=terrainH(p.m.position.x,p.m.position.z)+0.04; // land ON the rolling terrain, not the old y=0 plane
+    if(p.m.position.y<gy){p.m.position.y=gy;p.vel.set(0,0,0);
       if(!p.painted){p.painted=true;paintSplat(p.m.position.x,p.m.position.z,p.mat===M.chipRed?'blood':'chip');}
       if(p.sticky){if(!p.flat){p.m.scale.y*=.4;p.flat=true;p.life=Math.max(p.life,1.8);}}
       else{p.settled=true;p.life=p.mat===M.chipRed?rand(25,40):rand(15,25);}} // carnage lingers: gibs 25-40s, chips 15-25s
@@ -92,15 +93,22 @@ function ensureSplatPlane(){
   const c=document.createElement('canvas');c.width=384;c.height=512;
   splatCtx=c.getContext('2d'); // starts fully transparent
   splatTex=new THREE.CanvasTexture(c);
-  const mat=new THREE.MeshStandardMaterial({map:splatTex,transparent:true,roughness:.55,metalness:0,depthWrite:false});
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(9,12),mat); // 9 across the throw, 12 along it
+  const mat=new THREE.MeshStandardMaterial({map:splatTex,transparent:true,roughness:.55,metalness:0,depthWrite:false,
+    polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-4}); // draped on the grass: win the depth tie
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(9,12,18,24),mat); // 9 across the throw, 12 along it; segmented so it can drape
   // center = chute mouth + 5 units along the horizontal projection of the chute axis
   const mouth=chipperG.localToWorld(chuteMouth.clone());
   const dir=V3(0,0,1).applyAxisAngle(V3(0,1,0),chipperG.rotation.y);
   mesh.rotation.order='YXZ';mesh.rotation.y=chipperG.rotation.y;mesh.rotation.x=-Math.PI/2; // flat; local Y ends up anti-parallel to dir (sign is irrelevant, worldToLocal handles mapping)
-  mesh.position.set(mouth.x+dir.x*5,0.035,mouth.z+dir.z*5);
+  mesh.position.set(mouth.x+dir.x*5,0,mouth.z+dir.z*5);
   mesh.renderOrder=1;mesh.castShadow=false;mesh.receiveShadow=false;
   scene.add(mesh);mesh.updateMatrixWorld(true);
+  // drape over the rolling terrain: after the -90° X tilt local Z is world Y, so lift each vertex to the grass under it
+  const dp=mesh.geometry.attributes.position;
+  for(let i=0;i<dp.count;i++){
+    _splatV.set(dp.getX(i),dp.getY(i),0);mesh.localToWorld(_splatV);
+    dp.setZ(i,terrainH(_splatV.x,_splatV.z)+0.035);}
+  dp.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.geometry.computeBoundingSphere();
   splatPlane=mesh;return true;}
 const _bloodTones=['#6b1111','#521010','#7a1a14','#450b0b'];
 const _chipTones=['#c9a066','#8a6a3c','#d4b06a','#a07840'];

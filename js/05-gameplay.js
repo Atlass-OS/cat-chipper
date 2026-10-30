@@ -932,7 +932,11 @@ function catLeaveTree(c){
   meow();}
 function moveToward(mesh,tgt,speed,dt){
   const to=tgt.clone().sub(mesh.position);to.y=0;const d=to.length();
-  if(d>0.05){to.normalize();mesh.position.addScaledVector(to,Math.min(speed*dt,d));
+  if(d>0.05){to.normalize();
+    // ride the terrain: carry Y by the ground delta so walkers keep their offset (feet, sitting sink) over hills
+    const h0=terrainH(mesh.position.x,mesh.position.z);
+    mesh.position.addScaledVector(to,Math.min(speed*dt,d));
+    mesh.position.y+=terrainH(mesh.position.x,mesh.position.z)-h0;
     mesh.rotation.y=Math.atan2(to.x,to.z)+Math.PI/2*0;
     mesh.rotation.y=Math.atan2(to.x,to.z)-Math.PI/2;}
   return d;}
@@ -1390,8 +1394,9 @@ function updateWidowMakers(dt){
     if(!w.fell){w.t-=dt;if(w.t<=0)w.fell=true;continue;}
     w.vy-=18*dt;w.mesh.position.y+=w.vy*dt;
     w.mesh.rotation.x+=dt*4;w.mesh.rotation.z+=dt*3;
-    if(w.mesh.position.y<=0.3){
-      w.mesh.position.y=0.3;
+    const wy=terrainH(w.mesh.position.x,w.mesh.position.z)+0.3;
+    if(w.mesh.position.y<=wy){
+      w.mesh.position.y=wy;
       const dxz=Math.hypot(player.pos.x-w.tree.pos.x,player.pos.z-w.tree.pos.z);
       if(!game.over&&dxz<2.5){
         catScratch(1);fxShake=Math.max(fxShake,1.5);
@@ -1735,7 +1740,7 @@ function updateCrew(dt){
       const d=moveToward(gm.mesh,chipper.intake,2.55,dt); // 15% slower: stump-end mass
       // branch DRAGS behind: stump end at the hand, leaf end trailing on the ground
       const bm=gm.carry.mesh;
-      bm.position.copy(gm.mesh.position);bm.position.y=0.9;
+      bm.position.copy(gm.mesh.position);bm.position.y=terrainH(gm.mesh.position.x,gm.mesh.position.z)+0.9;
       const trailYaw=gm.mesh.rotation.y+Math.PI; // opposite of heading
       if(bm._dragYaw===undefined)bm._dragYaw=trailYaw;
       let dy=trailYaw-bm._dragYaw;
