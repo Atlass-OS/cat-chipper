@@ -54,3 +54,13 @@ node server.js                    # from repo root (port 8321), then open http:/
 
 ### Backups
 `js-v1-backup/` and `index-v1-backup.html` are the frozen first playable build — don't edit them; they're the rollback point.
+
+## Work queue: verbatims → punch list → ideas
+
+The owner's words drive the work (work-queue model v1, ATLASS RS3 2026-10-31). **The queue lives in `.work-queue/`, its own LOCAL git repo, gitignored here and never pushed.** This repo is PUBLIC and GitHub Pages serves `master:/`, so the owner's words must never sit in this tree. Every session:
+
+- Bank an owner instruction, whole, in `.work-queue/docs/CC-VERBATIMS.md` THE SAME SESSION (append-only; header `### V-<YYYYMMDD>-<nn> · <date time> MT · <channel> · heard by <seat>`). Never edit or delete one.
+- Then row it in `.work-queue/docs/CC-PUNCH-LIST.md` (`### CC-<n> · TITLE`; the fields are in its `## HOW TO WRITE A ROW`) or idea it in `.work-queue/docs/CC-IDEAS.md`, citing the V-id. An idea never becomes a row on its own.
+- Run `cd .work-queue && node scripts/check-punch-list.mjs; echo EXIT=$?` bare (commit queue edits inside `.work-queue/`) at boot and before any hand-off or rotation. RED (exit 1) is the first work item; exit 2 means a file is missing.
+- Design from the verbatims + addenda + rows (rows citing the same V-id are grouping candidates), never from a distillation alone.
+- To improve a design, append an Addendum under the verbatim (`- <date> · <seat> · <row id>: …`); never rewrite the owner's words.
